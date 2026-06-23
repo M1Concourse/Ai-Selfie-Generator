@@ -1100,30 +1100,29 @@ async function generateSelfie() {
     statusEl.textContent = 'AI is compositing the selfie…';
 
     // Use fal.ai flux-kontext-pro - accepts base64 data URIs directly
-    // ── Step 1: Upload images to fal.ai storage as blobs ─────────────────
-    statusEl.textContent = 'Preparing your photo…';
-
-    async function uploadBlobToFal(dataURL, filename) {
-      const blob = dataURLtoBlob(dataURL);
-      const formData = new FormData();
-      formData.append('file', blob, filename);
-      const resp = await fetch('https://rest.fal.run/storage/upload', {
-        method: 'POST',
-        headers: { 'Authorization': `Key ${FAL_KEY}` },
-        body: formData
-      });
-      if (!resp.ok) throw new Error(`fal storage upload failed: ${resp.status}`);
-      const data = await resp.json();
-      return data.access_url || data.url || data.file_url;
-    }
-
-    const fanUrl = await uploadBlobToFal(fanPhotoDataURL, 'fan.jpg');
-    statusEl.textContent = 'Preparing driver photo…';
-    const driverUrl = await uploadBlobToFal(selectedDriver.avatar, 'driver.jpg');
-
-    // ── Step 2: Send hosted URLs to fal.ai ───────────────────────────────
+    // ── Step 1: Resize images to reasonable size before sending ──────────
     statusEl.textContent = 'AI is compositing the selfie…';
 
+    async function resizeToDataURL(dataURL, maxSize = 1024) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = dataURL;
+      });
+    }
+
+    const fanResized = await resizeToDataURL(fanPhotoDataURL, 1024);
+    const driverResized = await resizeToDataURL(selectedDriver.avatar, 1024);
+
+    // ── Step 2: Send to fal.ai as base64 data URIs ────────────────────────
     const falResp = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext/multi', {
       method: 'POST',
       headers: {
@@ -1132,7 +1131,7 @@ async function generateSelfie() {
       },
       body: JSON.stringify({
         prompt: `Realistic selfie photo taken at a motorsports racetrack. The image shows exactly two people: the person from image 1 on the left side, and ${selectedDriver.name} from image 2 on the right side. ${selectedDriver.name} is a ${selectedDriver.description} — use their exact face, hair color, and appearance from image 2. Both people are leaning together cheek-to-cheek smiling at the camera. Background: racetrack, pit lane, race cars, bright daylight. Photorealistic, candid fan selfie style. Preserve both faces exactly as they appear in the reference images.`,
-        image_urls: [fanUrl, driverUrl],
+        image_urls: [fanResized, driverResized],
         num_images: 1,
         image_size: 'square_hd',
         guidance_scale: 3.5,
