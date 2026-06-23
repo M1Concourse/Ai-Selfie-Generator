@@ -1127,27 +1127,21 @@ async function generateSelfie() {
     if (!queueData.request_id) throw new Error('No request_id from fal.ai: ' + JSON.stringify(queueData));
     const generatedImageUrl = await pollFalResult(queueData.request_id, queueData.status_url, queueData.response_url);
 
-    // ── Step 3: Claude writes the caption ────────────────────────────────
+    // ── Step 3: OpenAI writes the caption ────────────────────────────────
     statusEl.textContent = 'Writing your caption…';
 
-    const fanB64 = fanPhotoDataURL.split(',')[1];
-    const fanMediaType = fanPhotoDataURL.split(';')[0].split(':')[1] || 'image/jpeg';
-
-    const claudeResp = await fetch('https://api.anthropic.com/v1/messages', {
+    const claudeResp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': OPENAI_KEY,
-        'anthropic-version': '2023-06-01'
+        'Authorization': `Bearer ${OPENAI_KEY}`
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'gpt-4o',
         max_tokens: 400,
         messages: [{
           role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: fanMediaType, data: fanB64 } },
-            { type: 'text', text: `You are a creative motorsports fan experience AI for M1 Concourse and the American Speed Festival in Pontiac, Michigan.
+          content: `You are a creative motorsports fan experience AI for M1 Concourse and the American Speed Festival in Pontiac, Michigan.
 
 A fan just got an AI-generated selfie with ${selectedDriver.name}, ${selectedDriver.description}.
 
@@ -1159,8 +1153,7 @@ Write a short, exciting, first-person social media caption (2–3 sentences, max
 Then write one vivid sentence (the "scene") describing what the selfie looks like — both people together at the track.
 
 Respond ONLY with valid JSON, no markdown, no backticks:
-{"caption":"...","scene":"..."}` }
-          ]
+{"caption":"...","scene":"..."}`
         }]
       })
     });
@@ -1172,8 +1165,8 @@ Respond ONLY with valid JSON, no markdown, no backticks:
     let scene = `A fan and ${selectedDriver.name} together trackside at M1 Concourse, all smiles.`;
 
     try {
-      const textBlock = claudeData.content.find(b => b.type === 'text');
-      const parsed = JSON.parse(textBlock.text.trim());
+      const raw = claudeData.choices?.[0]?.message?.content?.trim() || '{}';
+      const parsed = JSON.parse(raw);
       caption = parsed.caption || caption;
       scene = parsed.scene || scene;
     } catch(e) { /* use defaults */ }
