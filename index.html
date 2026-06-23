@@ -1067,10 +1067,9 @@ document.getElementById('back-to-step1').addEventListener('click', () => {
   setStep(1);
 });
 
-// ── API Key management ────────────────────────────────────────────────────
-// ── Cloudflare Worker proxy URL ───────────────────────────────────────────
-// Replace this with your deployed Worker URL after following setup instructions
-const WORKER_URL = 'https://YOUR_WORKER_NAME.YOUR_SUBDOMAIN.workers.dev';
+// ── API Keys (safe to use directly from Netlify) ──────────────────────────
+const FAL_KEY = 'e97f7c85-68ab-4bf8-94a0-0fa100f3ce33:448a72c973dfce03aedccc72042975ef';
+const OPENAI_KEY = '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';
 
 // ── AI Generation ────────────────────────────────────────────────────────
 document.getElementById('generate-btn').addEventListener('click', generateSelfie);
@@ -1112,9 +1111,12 @@ async function generateSelfie() {
 
     // Use fal.ai flux-kontext-pro for image-conditioned generation
     // This model accepts reference images and generates a new scene
-    const falResp = await fetch(`${WORKER_URL}/fal/generate`, {
+    const falResp = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Key ${FAL_KEY}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         prompt: `A natural candid selfie photo of two people together at a motorsports racetrack event. The first person is the fan (from the first reference image) and the second person is ${selectedDriver.name}, a ${selectedDriver.description} (from the second reference image). They are standing close together, both smiling and looking at the camera, like a genuine fan photo moment. The background shows pit lane, race cars, and the excitement of a live racing event at M1 Concourse in Pontiac, Michigan. Warm, vibrant, real photography style. Both faces clearly visible, natural lighting.`,
         image_url: fanUrl,
@@ -1142,9 +1144,13 @@ async function generateSelfie() {
     const fanB64 = fanPhotoDataURL.split(',')[1];
     const fanMediaType = fanPhotoDataURL.split(';')[0].split(':')[1] || 'image/jpeg';
 
-    const claudeResp = await fetch(`${WORKER_URL}/claude/caption`, {
+    const claudeResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': OPENAI_KEY,
+        'anthropic-version': '2023-06-01'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 400,
@@ -1243,9 +1249,7 @@ Respond ONLY with valid JSON, no markdown, no backticks:
     console.error(err);
     const msg = err.message || '';
     if (msg.includes('401') || msg.includes('403')) {
-      alert('Invalid fal.ai API key. Please check your key and try again.');
-    } else if (msg.includes('fal.ai')) {
-      alert('fal.ai error: ' + msg + '\n\nCheck your API key and try again.');
+      alert('API key error. Please contact the event organizer.');
     } else {
       alert('Something went wrong generating your selfie. Please try again.\n\n' + msg);
     }
@@ -1254,19 +1258,20 @@ Respond ONLY with valid JSON, no markdown, no backticks:
   }
 }
 
-// ── fal.ai helpers (via Cloudflare Worker proxy) ─────────────────────────
+// ── fal.ai helpers (direct calls — works from Netlify) ───────────────────
 
 async function uploadToFal(blob, filename) {
-  // Step 1: get a signed upload URL from our Worker
-  const resp = await fetch(`${WORKER_URL}/fal/upload/initiate`, {
+  const resp = await fetch('https://rest.fal.run/storage/upload/initiate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Authorization': `Key ${FAL_KEY}`,
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify({ file_name: filename, content_type: blob.type || 'image/jpeg' })
   });
   if (!resp.ok) throw new Error(`fal.ai upload initiate failed: ${resp.status}`);
   const { upload_url, file_url } = await resp.json();
 
-  // Step 2: PUT directly to the signed S3 URL (this is fine — it's a pre-signed S3 URL, no auth needed)
   const putResp = await fetch(upload_url, {
     method: 'PUT',
     headers: { 'Content-Type': blob.type || 'image/jpeg' },
@@ -1283,12 +1288,18 @@ async function pollFalResult(requestId) {
 
   while (Date.now() - startTime < maxWait) {
     await delay(3000);
-    const resp = await fetch(`${WORKER_URL}/fal/status/${requestId}`);
+    const resp = await fetch(
+      `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}/status`,
+      { headers: { 'Authorization': `Key ${FAL_KEY}` } }
+    );
     if (!resp.ok) throw new Error(`fal.ai poll failed: ${resp.status}`);
     const data = await resp.json();
 
     if (data.status === 'COMPLETED' || data.images) {
-      const resultResp = await fetch(`${WORKER_URL}/fal/result/${requestId}`);
+      const resultResp = await fetch(
+        `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}`,
+        { headers: { 'Authorization': `Key ${FAL_KEY}` } }
+      );
       const result = await resultResp.json();
       const imgUrl = result?.images?.[0]?.url || result?.image?.url;
       if (!imgUrl) throw new Error('No image URL in fal.ai response');
