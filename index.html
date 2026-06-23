@@ -1100,24 +1100,20 @@ async function generateSelfie() {
     statusEl.textContent = 'AI is compositing the selfie…';
 
     // Use fal.ai flux-kontext-pro - accepts base64 data URIs directly
-    // Use PuLID — purpose-built for accurate face identity preservation
-    const falResp = await fetch('https://queue.fal.run/fal-ai/pulid', {
+    // Use Flux Kontext Multi for two-image selfie generation
+    const falResp = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext/multi', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${FAL_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: `A natural candid selfie photo of two people together at a motorsports racetrack. On the left is the fan, on the right is ${selectedDriver.name} (${selectedDriver.description}). They are standing close together, both smiling and looking at the camera. The background shows a racetrack with race cars, pit lane, and grandstands at M1 Concourse in Pontiac Michigan. Warm natural lighting, real photography style, both faces clearly visible.`,
-        reference_images: [
-          { image_url: fanPhotoDataURL, weight: 1.0 },
-          { image_url: selectedDriver.avatar, weight: 1.0 }
-        ],
+        prompt: `Realistic selfie photo taken at a motorsports racetrack. The image shows exactly two people: the person from image 1 on the left side, and ${selectedDriver.name} from image 2 on the right side. ${selectedDriver.name} is a ${selectedDriver.description} — use their exact face, hair color, and appearance from image 2. Both people are leaning together cheek-to-cheek smiling at the camera. Background: racetrack, pit lane, race cars, bright daylight. Photorealistic, candid fan selfie style. Preserve both faces exactly as they appear in the reference images.`,
+        image_urls: [fanPhotoDataURL, selectedDriver.avatar],
         num_images: 1,
         image_size: 'square_hd',
-        num_inference_steps: 20,
-        guidance_scale: 4.0,
-        id_scale: 0.8
+        guidance_scale: 3.5,
+        safety_tolerance: '2'
       })
     });
 
@@ -1245,8 +1241,8 @@ async function pollFalResult(requestId, statusUrl, responseUrl) {
   const delay = ms => new Promise(r => setTimeout(r, ms));
 
   // Use the URLs returned by fal.ai directly, fall back to constructed URLs
-  const pollUrl = statusUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}/status`;
-  const resultUrl = responseUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}`;
+  const pollUrl = statusUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/multi/requests/${requestId}/status`;
+  const resultUrl = responseUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/multi/requests/${requestId}`;
 
   while (Date.now() - startTime < maxWait) {
     await delay(3000);
