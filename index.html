@@ -1100,19 +1100,19 @@ async function generateSelfie() {
     statusEl.textContent = 'AI is compositing the selfie…';
 
     // Use fal.ai flux-kontext-pro - accepts base64 data URIs directly
-    const falResp = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
+    const falResp = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext/multi', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${FAL_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: `A natural candid selfie photo of two people together at a motorsports racetrack event. The first person is the fan (from the first reference image) and the second person is ${selectedDriver.name}, a ${selectedDriver.description} (from the second reference image). They are standing close together, both smiling and looking at the camera, like a genuine fan photo moment. The background shows pit lane, race cars, and the excitement of a live racing event at M1 Concourse in Pontiac, Michigan. Warm, vibrant, real photography style. Both faces clearly visible, natural lighting.`,
-        image_url: fanPhotoDataURL,
-        image_url_2: selectedDriver.avatar,
+        prompt: `Create a realistic candid selfie photograph of exactly these two specific people together: Person 1 is the fan from the first image — preserve their exact face, skin tone, hair color, and appearance precisely. Person 2 is ${selectedDriver.name} from the second image — preserve their exact face, skin tone, hair color, gender, and appearance precisely. ${selectedDriver.name} is ${selectedDriver.description}. Both people are standing close together cheek-to-cheek smiling at the camera like a fan selfie photo. The background is a motorsports racetrack with race cars visible. Natural selfie-style photo, both faces fully visible and unmodified. Do not change either person's face, gender, age, or appearance.`,
+        image_urls: [fanPhotoDataURL, selectedDriver.avatar],
         num_images: 1,
         image_size: 'square_hd',
-        safety_tolerance: '2'
+        safety_tolerance: '2',
+        guidance_scale: 4.5
       })
     });
 
