@@ -1096,21 +1096,10 @@ async function generateSelfie() {
   }, 3000);
 
   try {
-    // ── Step 1: Upload both images to fal.ai storage ──────────────────────
-    statusEl.textContent = 'Uploading your photo…';
-
-    const fanBlob = dataURLtoBlob(fanPhotoDataURL);
-    const fanUrl = await uploadToFal(fanBlob, 'fan-selfie.jpg');
-
-    statusEl.textContent = 'Uploading driver photo…';
-    const driverBlob = dataURLtoBlob(selectedDriver.avatar);
-    const driverUrl = await uploadToFal(driverBlob, 'driver.jpg');
-
-    // ── Step 2: fal.ai image generation ──────────────────────────────────
+    // ── Step 1: Send images directly as base64 to fal.ai (no upload needed) ──
     statusEl.textContent = 'AI is compositing the selfie…';
 
-    // Use fal.ai flux-kontext-pro for image-conditioned generation
-    // This model accepts reference images and generates a new scene
+    // Use fal.ai flux-kontext-pro - accepts base64 data URIs directly
     const falResp = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
       method: 'POST',
       headers: {
@@ -1119,8 +1108,8 @@ async function generateSelfie() {
       },
       body: JSON.stringify({
         prompt: `A natural candid selfie photo of two people together at a motorsports racetrack event. The first person is the fan (from the first reference image) and the second person is ${selectedDriver.name}, a ${selectedDriver.description} (from the second reference image). They are standing close together, both smiling and looking at the camera, like a genuine fan photo moment. The background shows pit lane, race cars, and the excitement of a live racing event at M1 Concourse in Pontiac, Michigan. Warm, vibrant, real photography style. Both faces clearly visible, natural lighting.`,
-        image_url: fanUrl,
-        image_url_2: driverUrl,
+        image_url: fanPhotoDataURL,
+        image_url_2: selectedDriver.avatar,
         num_images: 1,
         image_size: 'square_hd',
         safety_tolerance: '2'
@@ -1135,8 +1124,9 @@ async function generateSelfie() {
     // fal queue returns a request_id — poll for result
     const queueData = await falResp.json();
     statusEl.textContent = 'Waiting for AI to finish…';
-
-    const generatedImageUrl = await pollFalResult(queueData.request_id || queueData.response_url);
+    const requestId = queueData.request_id;
+    if (!requestId) throw new Error('No request_id from fal.ai: ' + JSON.stringify(queueData));
+    const generatedImageUrl = await pollFalResult(requestId);
 
     // ── Step 3: Claude writes the caption ────────────────────────────────
     statusEl.textContent = 'Writing your caption…';
