@@ -1124,9 +1124,8 @@ async function generateSelfie() {
     // fal queue returns a request_id — poll for result
     const queueData = await falResp.json();
     statusEl.textContent = 'Waiting for AI to finish…';
-    const requestId = queueData.request_id;
-    if (!requestId) throw new Error('No request_id from fal.ai: ' + JSON.stringify(queueData));
-    const generatedImageUrl = await pollFalResult(requestId);
+    if (!queueData.request_id) throw new Error('No request_id from fal.ai: ' + JSON.stringify(queueData));
+    const generatedImageUrl = await pollFalResult(queueData.request_id, queueData.status_url, queueData.response_url);
 
     // ── Step 3: Claude writes the caption ────────────────────────────────
     statusEl.textContent = 'Writing your caption…';
@@ -1271,33 +1270,37 @@ async function uploadToFal(blob, filename) {
   return file_url;
 }
 
-async function pollFalResult(requestId) {
+async function pollFalResult(requestId, statusUrl, responseUrl) {
   const maxWait = 120000;
   const startTime = Date.now();
   const delay = ms => new Promise(r => setTimeout(r, ms));
 
+  // Use the URLs returned by fal.ai directly, fall back to constructed URLs
+  const pollUrl = statusUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}/status`;
+  const resultUrl = responseUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}`;
+
   while (Date.now() - startTime < maxWait) {
     await delay(3000);
-    const resp = await fetch(
-      `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}/status`,
-      { headers: { 'Authorization': `Key ${FAL_KEY}` } }
-    );
+    const resp = await fetch(pollUrl, {
+      headers: { 'Authorization': `Key ${FAL_KEY}` }
+    });
     if (!resp.ok) throw new Error(`fal.ai poll failed: ${resp.status}`);
     const data = await resp.json();
 
-    if (data.status === 'COMPLETED' || data.images) {
-      const resultResp = await fetch(
-        `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}`,
-        { headers: { 'Authorization': `Key ${FAL_KEY}` } }
-      );
+    if (data.status === 'COMPLETED') {
+      const resultResp = await fetch(resultUrl, {
+        headers: { 'Authorization': `Key ${FAL_KEY}` }
+      });
+      if (!resultResp.ok) throw new Error(`fal.ai result fetch failed: ${resultResp.status}`);
       const result = await resultResp.json();
       const imgUrl = result?.images?.[0]?.url || result?.image?.url;
-      if (!imgUrl) throw new Error('No image URL in fal.ai response');
+      if (!imgUrl) throw new Error('No image URL in fal.ai response: ' + JSON.stringify(result));
       return imgUrl;
     }
     if (data.status === 'FAILED') {
-      throw new Error('fal.ai generation failed: ' + (data.error || 'unknown error'));
+      throw new Error('fal.ai generation failed: ' + (data.error || JSON.stringify(data)));
     }
+    // IN_QUEUE or IN_PROGRESS — keep polling
   }
   throw new Error('fal.ai timed out after 2 minutes');
 }
