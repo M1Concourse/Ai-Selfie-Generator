@@ -1127,49 +1127,20 @@ async function generateSelfie() {
     if (!queueData.request_id) throw new Error('No request_id from fal.ai: ' + JSON.stringify(queueData));
     const generatedImageUrl = await pollFalResult(queueData.request_id, queueData.status_url, queueData.response_url);
 
-    // ── Step 3: OpenAI writes the caption ────────────────────────────────
+    // ── Step 3: Generate caption locally (no API needed) ─────────────────
     statusEl.textContent = 'Writing your caption…';
 
-    const claudeResp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        max_tokens: 400,
-        messages: [{
-          role: 'user',
-          content: `You are a creative motorsports fan experience AI for M1 Concourse and the American Speed Festival in Pontiac, Michigan.
+    const captionTemplates = [
+      `Just got an AI selfie with @${selectedDriver.instagram} at the American Speed Festival — this is unreal! 🏁`,
+      `Living my best life at @m1concourse with @${selectedDriver.instagram} — American Speed Festival is everything! 🏁`,
+      `Can't believe I got a selfie with @${selectedDriver.instagram} at the American Speed Festival at M1 Concourse! 🏁`,
+      `Track day dreams coming true — @${selectedDriver.instagram} at the American Speed Festival was incredible! 🏁`,
+      `American Speed Festival moment I'll never forget — @${selectedDriver.instagram} you're amazing! 🏁`
+    ];
+    const caption = captionTemplates[Math.floor(Math.random() * captionTemplates.length)];
+    const scene = `A fan and ${selectedDriver.name} together trackside at M1 Concourse during the American Speed Festival, both smiling for the camera with race cars in the background.`;
 
-A fan just got an AI-generated selfie with ${selectedDriver.name}, ${selectedDriver.description}.
-
-Write a short, exciting, first-person social media caption (2–3 sentences, max 220 characters) that the fan would post as if they just took this selfie together with ${selectedDriver.name} at the American Speed Festival at M1 Concourse.
-- Make it feel authentic and thrilling, like a real fan moment at a live race event
-- Naturally mention their Instagram handle @${selectedDriver.instagram} once
-- Do NOT include hashtags (added separately)
-
-Then write one vivid sentence (the "scene") describing what the selfie looks like — both people together at the track.
-
-Respond ONLY with valid JSON, no markdown, no backticks:
-{"caption":"...","scene":"..."}`
-        }]
-      })
-    });
-
-    const claudeData = await claudeResp.json();
     clearInterval(statusInterval);
-
-    let caption = `Just got a selfie with @${selectedDriver.instagram} at the American Speed Festival — absolutely unreal! 🏁`;
-    let scene = `A fan and ${selectedDriver.name} together trackside at M1 Concourse, all smiles.`;
-
-    try {
-      const raw = claudeData.choices?.[0]?.message?.content?.trim() || '{}';
-      const parsed = JSON.parse(raw);
-      caption = parsed.caption || caption;
-      scene = parsed.scene || scene;
-    } catch(e) { /* use defaults */ }
 
     // ── Step 4: Build branded canvas with real generated image ────────────
     statusEl.textContent = 'Building your shareable card…';
@@ -1308,17 +1279,43 @@ function dataURLtoBlob(dataURL) {
 }
 
 // ── Canvas Composite — wraps the fal.ai generated image in M1 branding ───
+async function loadImageCORS(url) {
+  // Try direct first (works if CORS headers present)
+  // If not, fetch as blob and convert to object URL
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('fetch failed');
+    const blob = await resp.blob();
+    return URL.createObjectURL(blob);
+  } catch(e) {
+    // Fall back to a CORS proxy
+    const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const resp = await fetch(proxy);
+    const blob = await resp.blob();
+    return URL.createObjectURL(blob);
+  }
+}
+
 function buildComposite(generatedImageUrl, driver, sceneText) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const W = 1080, H = 1280;
     const canvas = document.getElementById('result-canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
+    let objectUrl = null;
+    try {
+      objectUrl = await loadImageCORS(generatedImageUrl);
+    } catch(e) {
+      reject(new Error('Failed to load generated image: ' + e.message));
+      return;
+    }
+
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+
       // ── Black background ──
       ctx.fillStyle = '#0a0a0a';
       ctx.fillRect(0, 0, W, H);
@@ -1326,7 +1323,6 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
       // ── Generated selfie image — full width center ──
       const imgAreaH = 860;
       const imgAreaY = 110;
-      // Cover-fit the generated image into the center area
       const ar = img.naturalWidth / img.naturalHeight;
       const boxAr = W / imgAreaH;
       let sw, sh, sx, sy;
@@ -1339,7 +1335,7 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
       }
       ctx.drawImage(img, sx, sy, sw, sh, 0, imgAreaY, W, imgAreaH);
 
-      // Subtle dark gradient at bottom of photo for text legibility
+      // Gradient at bottom of photo
       const grad = ctx.createLinearGradient(0, imgAreaY + imgAreaH - 120, 0, imgAreaY + imgAreaH);
       grad.addColorStop(0, 'rgba(0,0,0,0)');
       grad.addColorStop(1, 'rgba(0,0,0,0.7)');
@@ -1377,7 +1373,6 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
       ctx.fillStyle = '#d0021b';
       ctx.fillRect(0, barY, W, 3);
 
-      // Driver title + name
       ctx.fillStyle = '#d0021b';
       ctx.font = 'bold 13px Archivo, Arial, sans-serif';
       ctx.textAlign = 'center';
@@ -1386,20 +1381,21 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
       ctx.font = 'bold 40px Archivo, Arial, sans-serif';
       ctx.fillText(driver.name, W / 2, barY + 82);
 
-      // Scene text
       ctx.fillStyle = '#888';
       ctx.font = '17px Archivo, Arial, sans-serif';
       wrapText(ctx, sceneText, W / 2, barY + 116, W - 80, 24);
 
-      // Hashtags
       ctx.fillStyle = '#d0021b';
       ctx.font = 'bold 14px Archivo, Arial, sans-serif';
       ctx.fillText('#M1Concourse  #AmericanSpeedFestival  #ASF2026', W / 2, H - 18);
 
       resolve(canvas.toDataURL('image/jpeg', 0.93));
     };
-    img.onerror = () => reject(new Error('Failed to load generated image onto canvas'));
-    img.src = generatedImageUrl;
+    img.onerror = () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      reject(new Error('Image failed to render on canvas'));
+    };
+    img.src = objectUrl;
   });
 }
 
