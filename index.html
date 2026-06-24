@@ -497,36 +497,37 @@
 
   /* ── Terms & Conditions modal ── */
   .tc-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.92);
+    position: relative;
     z-index: 1000;
+    background: var(--m1-black);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 24px;
+    padding: 24px 16px;
+    min-height: 100vh;
   }
   .tc-modal {
     background: #161616;
     border: 1px solid #2a2a2a;
     border-top: 3px solid var(--m1-red);
     border-radius: var(--radius-lg);
-    max-width: 520px;
+    max-width: 480px;
     width: 100%;
-    padding: 32px;
-    max-height: 90vh;
-    overflow-y: auto;
+    padding: 24px 20px;
+    margin-top: 40px;
+    margin-bottom: 40px;
+    height: fit-content;
   }
   .tc-modal h2 {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 900;
     color: #fff;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .tc-modal .tc-sub {
-    font-size: 12px;
+    font-size: 11px;
     color: #666;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
     text-transform: uppercase;
     letter-spacing: 1px;
     font-weight: 600;
@@ -535,29 +536,36 @@
     background: #0d0d0d;
     border: 1px solid #222;
     border-radius: var(--radius);
-    padding: 16px;
-    height: 200px;
+    padding: 14px;
+    height: 160px;
     overflow-y: auto;
-    font-size: 12px;
+    font-size: 11px;
     color: #888;
-    line-height: 1.7;
-    margin-bottom: 20px;
+    line-height: 1.6;
+    margin-bottom: 14px;
   }
-  .tc-scroll h4 { color: #ccc; margin: 12px 0 4px; font-size: 12px; }
+  .tc-scroll h4 { color: #ccc; margin: 10px 0 3px; font-size: 11px; }
   .tc-checkbox-row {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 14px;
+    background: #0d0d0d;
+    border: 1px solid #222;
+    border-radius: var(--radius);
+    padding: 10px 12px;
   }
   .tc-checkbox-row input[type="checkbox"] {
-    width: 18px; height: 18px;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
     accent-color: var(--m1-red);
     margin-top: 2px;
     flex-shrink: 0;
+    cursor: pointer;
   }
   .tc-checkbox-row label {
-    font-size: 13px;
+    font-size: 11px;
     color: #aaa;
     line-height: 1.5;
     cursor: pointer;
@@ -733,6 +741,9 @@
     <button class="btn-primary" id="tc-agree-btn" disabled>Agree & Continue</button>
   </div>
 </div>
+
+<!-- MAIN CONTENT (hidden until T&C agreed) -->
+<div id="main-content">
 
 <!-- HEADER -->
 <header>
@@ -1187,8 +1198,17 @@ document.addEventListener('DOMContentLoaded', () => {
 const tcOverlay = document.getElementById('tc-overlay');
 const tcCheck = document.getElementById('tc-check');
 const tcAgreeBtn = document.getElementById('tc-agree-btn');
+const mainContent = document.getElementById('main-content');
+
+// Hide main content until T&C agreed
+mainContent.style.display = 'none';
+
 tcCheck.addEventListener('change', () => { tcAgreeBtn.disabled = !tcCheck.checked; });
-tcAgreeBtn.addEventListener('click', () => { tcOverlay.style.display = 'none'; });
+tcAgreeBtn.addEventListener('click', () => {
+  tcOverlay.style.display = 'none';
+  mainContent.style.display = 'block';
+  sendHeight();
+});
 
 // ── API Keys (safe to use directly from Netlify) ──────────────────────────
 const FAL_KEY = 'e97f7c85-68ab-4bf8-94a0-0fa100f3ce33:448a72c973dfce03aedccc72042975ef';
@@ -1657,5 +1677,7 @@ function sendHeight() {
 new ResizeObserver(sendHeight).observe(document.body);
 window.addEventListener('load', sendHeight);
 </script>
+</div><!-- end main-content -->
+
 </body>
 </html>
