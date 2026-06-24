@@ -494,6 +494,75 @@
   .api-key-save:hover { background: #e09010; }
   .api-key-status { font-size: 11px; color: #2ecc71; }
 
+  /* ── Terms & Conditions modal ── */
+  .tc-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .tc-modal {
+    background: #161616;
+    border: 1px solid #2a2a2a;
+    border-top: 3px solid var(--m1-red);
+    border-radius: var(--radius-lg);
+    max-width: 520px;
+    width: 100%;
+    padding: 32px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .tc-modal h2 {
+    font-size: 20px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .tc-modal .tc-sub {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+  .tc-scroll {
+    background: #0d0d0d;
+    border: 1px solid #222;
+    border-radius: var(--radius);
+    padding: 16px;
+    height: 200px;
+    overflow-y: auto;
+    font-size: 12px;
+    color: #888;
+    line-height: 1.7;
+    margin-bottom: 20px;
+  }
+  .tc-scroll h4 { color: #ccc; margin: 12px 0 4px; font-size: 12px; }
+  .tc-checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .tc-checkbox-row input[type="checkbox"] {
+    width: 18px; height: 18px;
+    accent-color: var(--m1-red);
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .tc-checkbox-row label {
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+  .tc-checkbox-row label strong { color: #fff; }
+
   .share-label {
     font-size: 11px; font-weight: 700; letter-spacing: 2px;
     text-transform: uppercase; color: #555; margin-bottom: 14px;
@@ -625,6 +694,44 @@
 </style>
 </head>
 <body>
+
+<!-- T&C Consent Modal -->
+<div class="tc-overlay" id="tc-overlay">
+  <div class="tc-modal">
+    <h2>Before You Generate</h2>
+    <div class="tc-sub">M1 Concourse · American Speed Festival · AI Fan Selfie</div>
+    <div class="tc-scroll">
+      <h4>1. Consent to Use Your Likeness</h4>
+      By proceeding, you consent to uploading your photo to generate an AI-composited image ("Fan Selfie") for personal, non-commercial social media sharing purposes related to the American Speed Festival at M1 Concourse.
+
+      <h4>2. AI-Generated Content</h4>
+      The Fan Selfie is created using artificial intelligence and does not represent a real photograph. The image is synthetic and generated solely for entertainment purposes.
+
+      <h4>3. Photo Storage & Privacy</h4>
+      Your uploaded photo is processed in real time to generate the Fan Selfie. Photos are not stored on M1 Concourse servers beyond the duration of the generation process. Images are transmitted to a third-party AI service (fal.ai) solely for generation purposes.
+
+      <h4>4. Driver / Influencer Likeness</h4>
+      The drivers and influencers featured in this tool have consented to their likeness being used for this fan experience at the American Speed Festival. Use of generated images is limited to personal social media sharing only.
+
+      <h4>5. Prohibited Uses</h4>
+      You agree not to use the generated image for commercial purposes, to misrepresent the image as a real photograph, to harass or defame any individual, or for any unlawful purpose.
+
+      <h4>6. Ownership</h4>
+      M1 Concourse retains rights to the generated image format and branding. You retain rights to your own likeness. Generated images may be used by M1 Concourse for promotional purposes with your consent indicated by proceeding.
+
+      <h4>7. Age Requirement</h4>
+      You confirm that you are 13 years of age or older. If you are under 18, you confirm you have parental or guardian consent to participate.
+
+      <h4>8. Limitation of Liability</h4>
+      M1 Concourse and the American Speed Festival are not liable for any damages arising from the use or sharing of AI-generated images produced by this tool.
+    </div>
+    <div class="tc-checkbox-row">
+      <input type="checkbox" id="tc-check" />
+      <label for="tc-check">I have read and agree to the terms above. I consent to my photo being used to generate an AI fan selfie. I understand this image is <strong>AI-generated</strong> and not a real photograph.</label>
+    </div>
+    <button class="btn-primary" id="tc-agree-btn" disabled>Agree & Continue</button>
+  </div>
+</div>
 
 <!-- HEADER -->
 <header>
@@ -1067,6 +1174,13 @@ document.getElementById('back-to-step1').addEventListener('click', () => {
   setStep(1);
 });
 
+// ── T&C Modal ─────────────────────────────────────────────────────────────
+const tcOverlay = document.getElementById('tc-overlay');
+const tcCheck = document.getElementById('tc-check');
+const tcAgreeBtn = document.getElementById('tc-agree-btn');
+tcCheck.addEventListener('change', () => { tcAgreeBtn.disabled = !tcCheck.checked; });
+tcAgreeBtn.addEventListener('click', () => { tcOverlay.style.display = 'none'; });
+
 // ── API Keys (safe to use directly from Netlify) ──────────────────────────
 const FAL_KEY = 'e97f7c85-68ab-4bf8-94a0-0fa100f3ce33:448a72c973dfce03aedccc72042975ef';
 const OPENAI_KEY = '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';
@@ -1100,7 +1214,7 @@ async function generateSelfie() {
     statusEl.textContent = 'AI is compositing the selfie…';
 
     // Use fal.ai flux-kontext-pro - accepts base64 data URIs directly
-    // ── Step 1: Resize images to reasonable size before sending ──────────
+    // ── Step 1: Resize images ─────────────────────────────────────────────
     statusEl.textContent = 'AI is compositing the selfie…';
 
     async function resizeToDataURL(dataURL, maxSize = 1024) {
@@ -1113,28 +1227,30 @@ async function generateSelfie() {
           const c = document.createElement('canvas');
           c.width = w; c.height = h;
           c.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(c.toDataURL('image/jpeg', 0.85));
+          resolve(c.toDataURL('image/jpeg', 0.88));
         };
         img.src = dataURL;
       });
     }
 
-    const fanResized = await resizeToDataURL(fanPhotoDataURL, 1024);
+    const fanResized    = await resizeToDataURL(fanPhotoDataURL, 1024);
     const driverResized = await resizeToDataURL(selectedDriver.avatar, 1024);
 
-    // ── Step 2: Send to fal.ai as base64 data URIs ────────────────────────
-    const falResp = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext/multi', {
+    // ── Step 2: flux-2-pro/edit — multi reference image editing ──────────
+    // Driver photo is image 1 (always preserved accurately)
+    // Fan photo is image 2 (placed alongside driver)
+    const falResp = await fetch('https://queue.fal.run/fal-ai/flux-2-pro/edit', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${FAL_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: `Realistic selfie photo taken at a motorsports racetrack. The image shows exactly two people: the person from image 1 on the left side, and ${selectedDriver.name} from image 2 on the right side. ${selectedDriver.name} is a ${selectedDriver.description} — use their exact face, hair color, and appearance from image 2. Both people are leaning together cheek-to-cheek smiling at the camera. Background: racetrack, pit lane, race cars, bright daylight. Photorealistic, candid fan selfie style. Preserve both faces exactly as they appear in the reference images.`,
-        image_urls: [fanResized, driverResized],
+        prompt: `Create a realistic fun selfie photo of ${selectedDriver.name} (person from @1) and the fan (person from @2) standing close together side by side at a motorsports racetrack event. Both people are smiling and looking at the camera. Keep ${selectedDriver.name}'s face, hair, and appearance exactly as in @1. Keep the fan's face exactly as in @2. Background: pit lane at M1 Concourse racetrack with race cars visible. Natural selfie photo style, bright daylight, both faces fully visible and accurate.`,
+        image_urls: [driverResized, fanResized],
         num_images: 1,
         image_size: 'square_hd',
-        guidance_scale: 3.5,
+        guidance_scale: 19,
         safety_tolerance: '2'
       })
     });
@@ -1263,8 +1379,8 @@ async function pollFalResult(requestId, statusUrl, responseUrl) {
   const delay = ms => new Promise(r => setTimeout(r, ms));
 
   // Use the URLs returned by fal.ai directly, fall back to constructed URLs
-  const pollUrl = statusUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/multi/requests/${requestId}/status`;
-  const resultUrl = responseUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/multi/requests/${requestId}`;
+  const pollUrl = statusUrl || `https://queue.fal.run/fal-ai/flux-2-pro/edit/requests/${requestId}/status`;
+  const resultUrl = responseUrl || `https://queue.fal.run/fal-ai/flux-2-pro/edit/requests/${requestId}`;
 
   while (Date.now() - startTime < maxWait) {
     await delay(3000);
