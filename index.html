@@ -19,6 +19,12 @@
     --radius-lg: 14px;
   }
 
+  html, body {
+    height: 100%;
+    min-height: 100vh;
+    background: var(--m1-black);
+  }
+
   body {
     font-family: 'Archivo', sans-serif;
     background: var(--m1-black);
@@ -26,6 +32,10 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+  }
+
+  main {
+    flex: 1;
   }
 
   /* ── Header ── */
@@ -39,23 +49,14 @@
   }
   .logo-box {
     display: flex;
-    flex-direction: column;
-    line-height: 1;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 6px 14px;
   }
-  .logo-m1 {
-    font-size: 28px;
-    font-weight: 900;
-    color: var(--m1-white);
-    letter-spacing: -1px;
-  }
-  .logo-m1 span { color: var(--m1-red); }
-  .logo-sub {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--m1-gray-mid);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-top: 2px;
+  .logo-box img {
+    height: 36px;
+    width: auto;
   }
   .event-badge {
     margin-left: auto;
@@ -1454,13 +1455,24 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
+    // Preload both the generated image and the M1 logo
     let objectUrl = null;
+    let logoImg = null;
+
     try {
       objectUrl = await loadImageCORS(generatedImageUrl);
     } catch(e) {
       reject(new Error('Failed to load generated image: ' + e.message));
       return;
     }
+
+    // Load logo
+    await new Promise((res) => {
+      logoImg = new Image();
+      logoImg.onload = res;
+      logoImg.onerror = res; // proceed even if logo fails
+      logoImg.src = M1_LOGO;
+    });
 
     const img = new Image();
     img.onload = () => {
@@ -1498,23 +1510,13 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
       ctx.fillStyle = '#d0021b';
       ctx.fillRect(0, 107, W, 3);
 
-      // Real M1 logo in header
-      const logoImg = new Image();
-      logoImg.onload = () => {
-        // Draw logo on left — keep aspect ratio, fit in 200x60 box
-        const logoH = 52;
-        const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
-        ctx.drawImage(logoImg, 30, (110 - logoH) / 2, logoW, logoH);
-      };
-      logoImg.src = M1_LOGO;
-
-      // Also draw it synchronously via a pre-loaded approach
-      try {
-        const lH = 52;
-        const lW = (logoImg.naturalWidth / logoImg.naturalHeight) * lH || 200;
+      // Real M1 logo
+      if (logoImg && logoImg.naturalWidth) {
+        const lH = 58;
+        const lW = (logoImg.naturalWidth / logoImg.naturalHeight) * lH;
         ctx.drawImage(logoImg, 30, (110 - lH) / 2, lW, lH);
-      } catch(e) {
-        // Fallback text if logo not loaded yet
+      } else {
+        // Fallback text
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 42px Archivo, Arial, sans-serif';
         ctx.textAlign = 'left';
@@ -1525,6 +1527,7 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
         ctx.fillText('CONCOURSE', 96, 72);
       }
 
+      // ASF badge right side
       ctx.fillStyle = '#d0021b';
       roundRect(ctx, W - 330, 28, 294, 52, 6);
       ctx.fill();
@@ -1541,17 +1544,24 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
       ctx.fillStyle = '#d0021b';
       ctx.fillRect(0, barY, W, 3);
 
+      // M1 logo above driver name in bottom bar
+      if (logoImg && logoImg.naturalWidth) {
+        const lH = 36;
+        const lW = (logoImg.naturalWidth / logoImg.naturalHeight) * lH;
+        ctx.drawImage(logoImg, W/2 - lW/2, barY + 10, lW, lH);
+      }
+
       ctx.fillStyle = '#d0021b';
       ctx.font = 'bold 13px Archivo, Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(driver.title.toUpperCase(), W / 2, barY + 36);
+      ctx.fillText(driver.title.toUpperCase(), W / 2, barY + 68);
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 40px Archivo, Arial, sans-serif';
-      ctx.fillText(driver.name, W / 2, barY + 82);
+      ctx.fillText(driver.name, W / 2, barY + 112);
 
       ctx.fillStyle = '#888';
       ctx.font = '17px Archivo, Arial, sans-serif';
-      wrapText(ctx, sceneText, W / 2, barY + 116, W - 80, 24);
+      wrapText(ctx, sceneText, W / 2, barY + 148, W - 80, 24);
 
       ctx.fillStyle = '#d0021b';
       ctx.font = 'bold 14px Archivo, Arial, sans-serif';
@@ -1638,6 +1648,14 @@ document.getElementById('start-over').addEventListener('click', () => {
   showPanel('panel-1');
   setStep(1);
 });
+
+// ── Auto-height: tell parent iframe how tall we are ───────────────────────
+function sendHeight() {
+  const h = document.documentElement.scrollHeight;
+  window.parent.postMessage({ type: 'm1-selfie-height', height: h }, '*');
+}
+new ResizeObserver(sendHeight).observe(document.body);
+window.addEventListener('load', sendHeight);
 </script>
 </body>
 </html>
