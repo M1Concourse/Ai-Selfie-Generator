@@ -23,8 +23,8 @@
     font-family: 'Archivo', sans-serif;
     background: var(--m1-black);
     color: var(--m1-white);
-    display: flex;
-    flex-direction: column;
+    margin: 0;
+    padding: 0;
   }
 
   #main-content {
@@ -50,18 +50,18 @@
     align-items: center;
     line-height: 1;
   }
-  .logo-m1 {
-    font-size: 26px;
+  .logo-wordmark {
+    font-size: 28px;
     font-weight: 900;
     color: var(--m1-white);
     letter-spacing: -1px;
+    font-family: 'Archivo', sans-serif;
   }
-  .logo-m1 span:first-child { color: var(--m1-red); }
-  .logo-concourse {
-    font-size: 26px;
-    font-weight: 900;
-    color: var(--m1-white);
-    letter-spacing: 1px;
+  .logo-wordmark .logo-num { color: var(--m1-red); }
+  .logo-wordmark .logo-name {
+    font-size: 20px;
+    letter-spacing: 2px;
+    margin-left: 4px;
   }
   .event-badge {
     margin-left: auto;
@@ -79,7 +79,7 @@
   .hero {
     background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
     border-bottom: 1px solid #222;
-    padding: 40px 24px 32px;
+    padding: 24px 24px 20px;
     text-align: center;
   }
   .hero-eyebrow {
@@ -143,7 +143,7 @@
   /* ── Main content ── */
   main {
     flex: 1;
-    padding: 32px 24px 48px;
+    padding: 24px 24px 32px;
     max-width: 780px;
     margin: 0 auto;
     width: 100%;
@@ -504,9 +504,8 @@
   .tc-overlay {
     background: var(--m1-black);
     display: flex;
-    align-items: flex-start;
     justify-content: center;
-    padding: 32px 16px;
+    padding: 32px 16px 32px;
     box-sizing: border-box;
   }
   .tc-modal {
@@ -749,7 +748,7 @@
 <!-- HEADER -->
 <header>
   <div class="logo-box">
-    <div class="logo-m1">M<span>1</span> <span class="logo-concourse">CONCOURSE</span></div>
+    <div class="logo-wordmark">M<span class="logo-num">1</span><span class="logo-name">CONCOURSE</span></div>
   </div>
   <div class="event-badge">American Speed Festival</div>
 </header>
@@ -769,8 +768,6 @@
 </div>
 
 <main>
-
-
 
   <!-- PANEL 1: Photo -->
   <div class="panel active" id="panel-1">
@@ -888,6 +885,8 @@
 <footer>
   <strong style="color:#555;">M1 Concourse</strong> &nbsp;·&nbsp; 1 Motorsports Dr, Pontiac, MI &nbsp;·&nbsp; <a href="https://m1concourse.com">m1concourse.com</a>
 </footer>
+
+</div><!-- end main-content -->
 
 <script>
 // ── Driver Roster ──────────────────────────────────────────────────────────
@@ -1672,13 +1671,12 @@ document.getElementById('start-over').addEventListener('click', () => {
 
 // ── Auto-height: tell parent iframe how tall we are ───────────────────────
 function sendHeight() {
-  const h = document.documentElement.scrollHeight;
+  const h = document.body.scrollHeight;
   window.parent.postMessage({ type: 'm1-selfie-height', height: h }, '*');
 }
 new ResizeObserver(sendHeight).observe(document.body);
 window.addEventListener('load', sendHeight);
 </script>
-</div><!-- end main-content -->
 
 </body>
 </html>
