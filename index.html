@@ -19,34 +19,21 @@
     --radius-lg: 14px;
   }
 
-  html {
-    height: 100%;
-    background: var(--m1-black);
-  }
-
   body {
     font-family: 'Archivo', sans-serif;
     background: var(--m1-black);
     color: var(--m1-white);
-    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    height: 100%;
   }
 
   #main-content {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-height: 100vh;
   }
 
   main {
     flex: 1;
-  }
-
-  footer {
-    margin-top: auto;
   }
 
   /* ── Header ── */
@@ -515,14 +502,11 @@
 
   /* ── Terms & Conditions modal ── */
   .tc-overlay {
-    position: relative;
-    z-index: 1000;
     background: var(--m1-black);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 24px 16px;
-    min-height: 100vh;
+    padding: 32px 16px;
     box-sizing: border-box;
   }
   .tc-modal {
