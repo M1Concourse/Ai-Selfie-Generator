@@ -655,20 +655,24 @@
 
   .start-over-btn {
     background: transparent;
-    border: none;
-    color: #444;
+    border: 1px solid #333;
+    color: #aaa;
     font-family: 'Archivo', sans-serif;
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 1px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
     cursor: pointer;
+    padding: 10px 28px;
+    border-radius: 6px;
     display: block;
-    margin: 20px auto 0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    margin: 24px auto 0;
+    transition: border-color 0.2s, color 0.2s;
   }
-  .start-over-btn:hover { color: #777; }
+  .start-over-btn:hover {
+    border-color: var(--m1-red);
+    color: #fff;
+  }
 
   /* ── Footer ── */
   footer {
@@ -871,7 +875,7 @@
       <div class="driver-social-row" id="driver-social-row"></div>
     </div>
 
-    <button class="start-over-btn" id="start-over">Start over with a new selfie</button>
+    <button class="start-over-btn" id="start-over">↩ Start Over</button>
   </div>
 
 </main>
@@ -1679,7 +1683,15 @@ document.getElementById('start-over').addEventListener('click', () => {
 
 // ── Auto-height: tell parent iframe how tall we are ───────────────────────
 function sendHeight() {
-  const h = document.body.scrollHeight;
+  // Use the last visible child's bottom edge for precise height
+  const children = document.body.children;
+  let h = 0;
+  for (let i = 0; i < children.length; i++) {
+    const rect = children[i].getBoundingClientRect();
+    const bottom = rect.bottom + window.scrollY;
+    if (bottom > h) h = bottom;
+  }
+  h = Math.ceil(h) + 8; // small buffer to avoid scrollbar
   window.parent.postMessage({ type: 'm1-selfie-height', height: h }, '*');
 }
 new ResizeObserver(sendHeight).observe(document.body);
