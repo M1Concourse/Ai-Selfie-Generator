@@ -837,8 +837,18 @@
   <div class="panel" id="panel-result">
     <p class="section-label">Step 3 — Your Fan Selfie</p>
     <div id="result-canvas-wrap">
-      <canvas id="result-canvas"></canvas>
-      <img id="result-img-fallback" style="display:none; width:100%; border-radius:12px;" alt="Your AI Fan Selfie" />
+      <div id="result-img-wrap" style="position:relative; border-radius:12px; overflow:hidden; background:#111;">
+        <img id="result-img-fallback" style="width:100%; display:block;" alt="Your AI Fan Selfie" />
+        <!-- M1 branding overlay -->
+        <div style="position:absolute; top:0; left:0; right:0; background:linear-gradient(180deg,#111 0%,rgba(0,0,0,0) 100%); padding:14px 18px; display:flex; align-items:center; justify-content:space-between;">
+          <img src="https://cdn.prod.website-files.com/67f16098a1aa4919ed9037c0/6a3550a889834638c851f6ac_M1%20Horizontal%20Red%20White.png" style="height:28px; width:auto;" alt="M1 Concourse" />
+          <span style="color:#fff; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; opacity:0.8;">American Speed Festival</span>
+        </div>
+        <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(0deg,#111 0%,rgba(0,0,0,0) 100%); padding:14px 18px; text-align:center;">
+          <span id="result-driver-overlay" style="color:#fff; font-size:13px; font-weight:700; letter-spacing:1px;"></span>
+          <span style="color:#d0021b; font-size:11px; display:block; margin-top:4px;">#M1Concourse &nbsp; #AmericanSpeedFestival &nbsp; #ASF2026</span>
+        </div>
+      </div>
     </div>
 
     <div class="ai-caption-box">
@@ -1326,13 +1336,10 @@ async function generateSelfie() {
 
     // ── Step 4: Build branded canvas with real generated image ────────────
     statusEl.textContent = 'Building your shareable card…';
-    try {
-      resultDataURL = await buildComposite(generatedImageUrl, selectedDriver, scene);
-    } catch(canvasErr) {
-      console.warn('Canvas composite failed, falling back to raw image:', canvasErr.message);
-      // Fall back: show the raw generated image without branding overlay
-      resultDataURL = generatedImageUrl;
-    }
+
+    // Skip canvas entirely — show generated image directly via <img> tag
+    // Canvas CORS blocks fal.ai CDN images; CSS branding overlay used instead
+    resultDataURL = generatedImageUrl;
 
     // ── Populate result panel ─────────────────────────────────────────────
     document.getElementById('ai-caption-text').textContent = scene;
@@ -1378,12 +1385,19 @@ async function generateSelfie() {
 
     const dlBtn = document.getElementById('download-btn');
     dlBtn.onclick = null;
-    dlBtn.addEventListener('click', (e) => {
+    dlBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      if (resultDataURL && resultDataURL.startsWith('data:')) {
-        downloadResult();
-      } else {
-        // Open CDN URL in new tab for manual save
+      try {
+        // Fetch the image and trigger a real download
+        const resp = await fetch(resultDataURL);
+        const blob = await resp.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'm1-fan-selfie.jpg';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch(err) {
+        // Fallback: open in new tab
         window.open(resultDataURL, '_blank');
       }
     });
@@ -1391,21 +1405,17 @@ async function generateSelfie() {
     const nameSpan = document.getElementById('driver-social-name');
     if (nameSpan) nameSpan.textContent = selectedDriver.name;
 
-    // Display result — use canvas if data URL, raw img if CDN URL
-    const canvasEl = document.getElementById('result-canvas');
+    // Show generated image directly in img tag
     const fallbackImg = document.getElementById('result-img-fallback');
-    if (resultDataURL && resultDataURL.startsWith('data:')) {
-      canvasEl.style.display = 'block';
-      if (fallbackImg) fallbackImg.style.display = 'none';
-    } else {
-      // Raw CDN URL — show as img tag, hide canvas
-      canvasEl.style.display = 'none';
-      if (fallbackImg) {
-        fallbackImg.src = resultDataURL;
-        fallbackImg.style.display = 'block';
-      }
+    if (fallbackImg) {
+      fallbackImg.src = resultDataURL;
+    }
+    const driverOverlay = document.getElementById('result-driver-overlay');
+    if (driverOverlay) {
+      driverOverlay.textContent = `Your selfie with ${selectedDriver.name}`;
     }
     showPanel('panel-result');
+    sendHeight();
 
   } catch(err) {
     clearInterval(statusInterval);
