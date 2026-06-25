@@ -1461,19 +1461,25 @@ function dataURLtoBlob(dataURL) {
 
 // ── Canvas Composite — wraps the fal.ai generated image in M1 branding ───
 async function loadImageCORS(url) {
-  // Try direct first (works if CORS headers present)
-  // If not, fetch as blob and convert to object URL
-  try {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('fetch failed');
-    const blob = await resp.blob();
-    return URL.createObjectURL(blob);
-  } catch(e) {
-    // Fall back to a CORS proxy
-    const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const resp = await fetch(proxy);
-    const blob = await resp.blob();
-    return URL.createObjectURL(blob);
+  // fal.ai CDN supports CORS — fetch as blob to avoid canvas taint
+  // Try up to 3 times with a short delay in case CDN isn't ready yet
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const resp = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      return URL.createObjectURL(blob);
+    } catch(e) {
+      if (attempt === 3) {
+        // Last resort: return the URL directly and let the img tag load it
+        // Canvas may be tainted but download will still work
+        return url;
+      }
+      await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
   }
 }
 
@@ -1505,8 +1511,14 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
     });
 
     const img = new Image();
+    img.crossOrigin = 'anonymous';
+    // Timeout if image never loads
+    const imgTimeout = setTimeout(() => {
+      reject(new Error('Generated image took too long to load'));
+    }, 20000);
     img.onload = () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      clearTimeout(imgTimeout);
+      if (objectUrl && objectUrl !== generatedImageUrl) URL.revokeObjectURL(objectUrl);
 
       // ── Black background ──
       ctx.fillStyle = '#0a0a0a';
