@@ -1259,8 +1259,6 @@ async function generateSelfie() {
 
     // Use fal.ai flux-kontext-pro - accepts base64 data URIs directly
     // ── Step 1: Resize images ─────────────────────────────────────────────
-    statusEl.textContent = 'AI is compositing the selfie…';
-
     async function resizeToDataURL(dataURL, maxSize = 1024) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -1280,21 +1278,35 @@ async function generateSelfie() {
     const fanResized    = await resizeToDataURL(fanPhotoDataURL, 1024);
     const driverResized = await resizeToDataURL(selectedDriver.avatar, 1024);
 
-    // ── Step 2: flux-2-pro/edit — multi reference image editing ──────────
-    // Driver photo is image 1 (always preserved accurately)
-    // Fan photo is image 2 (placed alongside driver)
-    const falResp = await fetch('https://queue.fal.run/fal-ai/flux-2-pro/edit', {
+    // ── Step 2: Upload images to fal.ai storage (required — no data URIs) ─
+    statusEl.textContent = 'Uploading images…';
+
+    async function dataURLtoFalUrl(dataURL, filename) {
+      const blob = dataURLtoBlob(dataURL);
+      return await uploadToFal(blob, filename);
+    }
+
+    const [driverUrl, fanUrl, bgUrl] = await Promise.all([
+      dataURLtoFalUrl(driverResized, 'driver.jpg'),
+      dataURLtoFalUrl(fanResized, 'fan.jpg'),
+      dataURLtoFalUrl(M1_BG, 'background.jpg')
+    ]);
+
+    statusEl.textContent = 'AI is compositing the selfie…';
+
+    // ── Step 3: flux-2-pro/edit with hosted URLs ─────────────────────────
+    const falResp = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext/multi', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${FAL_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: `Create a realistic fun selfie photo of ${selectedDriver.name} (person from @1) and the fan (person from @2) standing close together side by side, smiling at the camera. Keep ${selectedDriver.name}'s face, hair, and appearance exactly as in @1. Keep the fan's face exactly as in @2. The background should be the M1 Concourse motorsports venue from @3, blurred with a shallow depth of field bokeh effect so the two people are in sharp focus in the foreground. Natural selfie photo lighting, both faces fully visible and accurate. Photorealistic.`,
-        image_urls: [driverResized, fanResized, M1_BG],
+        prompt: `Create a realistic fun selfie photo of ${selectedDriver.name} (person from image 1) standing next to the fan (person from image 2), both smiling at the camera. Preserve ${selectedDriver.name}'s exact face, hair, and appearance from image 1. Preserve the fan's exact face and appearance from image 2. Background: M1 Concourse motorsports venue from image 3, blurred bokeh. Photorealistic natural selfie lighting.`,
+        image_urls: [driverUrl, fanUrl, bgUrl],
         num_images: 1,
         image_size: 'square_hd',
-        guidance_scale: 19,
+        guidance_scale: 3.5,
         safety_tolerance: '2'
       })
     });
@@ -1423,8 +1435,8 @@ async function pollFalResult(requestId, statusUrl, responseUrl) {
   const delay = ms => new Promise(r => setTimeout(r, ms));
 
   // Use the URLs returned by fal.ai directly, fall back to constructed URLs
-  const pollUrl = statusUrl || `https://queue.fal.run/fal-ai/flux-2-pro/edit/requests/${requestId}/status`;
-  const resultUrl = responseUrl || `https://queue.fal.run/fal-ai/flux-2-pro/edit/requests/${requestId}`;
+  const pollUrl = statusUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/multi/requests/${requestId}/status`;
+  const resultUrl = responseUrl || `https://queue.fal.run/fal-ai/flux-pro/kontext/multi/requests/${requestId}`;
 
   while (Date.now() - startTime < maxWait) {
     await delay(3000);
