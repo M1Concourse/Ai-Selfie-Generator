@@ -1356,7 +1356,7 @@ async function generateSelfie() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: `Realistic close-up selfie photo. ${selectedDriver.name} from image 1 and the fan from image 2 are standing together side by side, smiling at the camera. Preserve ${selectedDriver.name}'s exact face, hair and appearance from image 1. Preserve the fan's exact face from image 2. Background: the M1 Concourse motorsports venue exterior from image 3, heavily blurred with shallow depth-of-field bokeh effect — background should be very soft and out of focus while both people in the foreground are sharp. Bright natural daylight. Photorealistic candid selfie.`,
+        prompt: `Photorealistic candid selfie photo. ${selectedDriver.name} from image 1 and the fan from image 2 standing side by side smiling at the camera. CRITICAL: Preserve the fan's EXACT skin tone, ethnicity, facial features, hair color, hair texture, and overall appearance from image 2 without any alteration. CRITICAL: Preserve ${selectedDriver.name}'s exact face, hair, and appearance from image 1. Do not change anyone's race, skin color, or ethnicity. Background: M1 Concourse motorsports venue from image 3, heavily blurred bokeh, soft and out of focus. Both faces sharp in foreground. Bright natural daylight lighting.`,
         image_urls: [driverResized, fanResized, M1_BG],
         num_images: 1,
         image_size: 'square_hd',
@@ -1797,16 +1797,7 @@ document.getElementById('start-over').addEventListener('click', () => {
 // ── Auto-height: tell parent iframe how tall we are ───────────────────────
 // ── Marquee — fan selfie gallery ─────────────────────────────────────────
 const MARQUEE_KEY = 'm1_asf_selfies';
-const SEED_IMAGES = [
-  'https://images.unsplash.com/photo-1541348263662-e068662d82af?w=300&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=300&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=300&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1551958219-acbc4c739bc7?w=300&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=300&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=300&h=300&fit=crop',
-];
+const SEED_IMAGES = []; // Will fill with real fan selfies as they are generated
 
 function getSavedSelfies() {
   try {
@@ -1828,11 +1819,16 @@ function saveSelfie(url) {
 
 function buildMarquee() {
   const track = document.getElementById('marquee-track');
-  if (!track) return;
+  const section = document.querySelector('.marquee-section');
+  if (!track || !section) return;
   const saved = getSavedSelfies();
-  const all = [...saved, ...SEED_IMAGES];
+  if (saved.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
   // Duplicate for seamless loop
-  const doubled = [...all, ...all];
+  const doubled = [...saved, ...saved];
   track.innerHTML = doubled.map(url =>
     `<img class="marquee-img" src="${url}" alt="Fan selfie" loading="lazy" onerror="this.style.display='none'" />`
   ).join('');
