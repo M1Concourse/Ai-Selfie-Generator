@@ -838,6 +838,7 @@
     <p class="section-label">Step 3 — Your Fan Selfie</p>
     <div id="result-canvas-wrap">
       <canvas id="result-canvas"></canvas>
+      <img id="result-img-fallback" style="display:none; width:100%; border-radius:12px;" alt="Your AI Fan Selfie" />
     </div>
 
     <div class="ai-caption-box">
@@ -1325,7 +1326,13 @@ async function generateSelfie() {
 
     // ── Step 4: Build branded canvas with real generated image ────────────
     statusEl.textContent = 'Building your shareable card…';
-    resultDataURL = await buildComposite(generatedImageUrl, selectedDriver, scene);
+    try {
+      resultDataURL = await buildComposite(generatedImageUrl, selectedDriver, scene);
+    } catch(canvasErr) {
+      console.warn('Canvas composite failed, falling back to raw image:', canvasErr.message);
+      // Fall back: show the raw generated image without branding overlay
+      resultDataURL = generatedImageUrl;
+    }
 
     // ── Populate result panel ─────────────────────────────────────────────
     document.getElementById('ai-caption-text').textContent = scene;
@@ -1371,11 +1378,33 @@ async function generateSelfie() {
 
     const dlBtn = document.getElementById('download-btn');
     dlBtn.onclick = null;
-    dlBtn.addEventListener('click', (e) => { e.preventDefault(); downloadResult(); });
+    dlBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (resultDataURL && resultDataURL.startsWith('data:')) {
+        downloadResult();
+      } else {
+        // Open CDN URL in new tab for manual save
+        window.open(resultDataURL, '_blank');
+      }
+    });
 
     const nameSpan = document.getElementById('driver-social-name');
     if (nameSpan) nameSpan.textContent = selectedDriver.name;
 
+    // Display result — use canvas if data URL, raw img if CDN URL
+    const canvasEl = document.getElementById('result-canvas');
+    const fallbackImg = document.getElementById('result-img-fallback');
+    if (resultDataURL && resultDataURL.startsWith('data:')) {
+      canvasEl.style.display = 'block';
+      if (fallbackImg) fallbackImg.style.display = 'none';
+    } else {
+      // Raw CDN URL — show as img tag, hide canvas
+      canvasEl.style.display = 'none';
+      if (fallbackImg) {
+        fallbackImg.src = resultDataURL;
+        fallbackImg.style.display = 'block';
+      }
+    }
     showPanel('panel-result');
 
   } catch(err) {
@@ -1511,14 +1540,17 @@ function buildComposite(generatedImageUrl, driver, sceneText) {
     });
 
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for blob URLs — raw URLs don't need it and it can block them
+    if (objectUrl && objectUrl.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
     // Timeout if image never loads
     const imgTimeout = setTimeout(() => {
       reject(new Error('Generated image took too long to load'));
     }, 20000);
     img.onload = () => {
       clearTimeout(imgTimeout);
-      if (objectUrl && objectUrl !== generatedImageUrl) URL.revokeObjectURL(objectUrl);
+      if (objectUrl && objectUrl.startsWith('blob:')) URL.revokeObjectURL(objectUrl);
 
       // ── Black background ──
       ctx.fillStyle = '#0a0a0a';
