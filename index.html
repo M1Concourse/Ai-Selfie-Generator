@@ -1303,11 +1303,11 @@ async function generateSelfie() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: `Realistic selfie photo at a motorsports event. Place ${selectedDriver.name} from image 1 side by side with the fan from image 2, both smiling at the camera. Preserve ${selectedDriver.name}'s exact face and appearance from image 1. Preserve the fan's exact face from image 2. Use the M1 Concourse venue from image 3 as a blurred bokeh background. Photorealistic, natural selfie lighting, both faces sharp and accurate.`,
+        prompt: `Realistic close-up selfie photo. ${selectedDriver.name} from image 1 and the fan from image 2 are standing together side by side, smiling at the camera. Preserve ${selectedDriver.name}'s exact face, hair and appearance from image 1. Preserve the fan's exact face from image 2. Background: the M1 Concourse motorsports venue exterior from image 3, heavily blurred with shallow depth-of-field bokeh effect — background should be very soft and out of focus while both people in the foreground are sharp. Bright natural daylight. Photorealistic candid selfie.`,
         image_urls: [driverResized, fanResized, M1_BG],
         num_images: 1,
         image_size: 'square_hd',
-        guidance_scale: 3.5,
+        guidance_scale: 4,
         safety_tolerance: '2'
       })
     });
