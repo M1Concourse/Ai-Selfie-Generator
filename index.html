@@ -686,6 +686,49 @@
   }
   footer a { color: #d0021b; text-decoration: none; }
 
+  /* ── Marquee ── */
+  .marquee-section {
+    width: 100%;
+    background: #0a0a0a;
+    border-top: 1px solid #1a1a1a;
+    padding: 24px 0;
+    overflow: hidden;
+  }
+  .marquee-label {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #333;
+    margin-bottom: 16px;
+  }
+  .marquee-track-wrap {
+    overflow: hidden;
+    width: 100%;
+  }
+  .marquee-track {
+    display: flex;
+    gap: 12px;
+    animation: marquee-scroll 40s linear infinite;
+    width: max-content;
+  }
+  .marquee-track:hover { animation-play-state: paused; }
+  @keyframes marquee-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .marquee-img {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+    opacity: 0.85;
+    transition: opacity 0.2s;
+  }
+  .marquee-img:hover { opacity: 1; }
+
   /* ── Responsive ── */
   @media (max-width: 480px) {
     .hero h1 { font-size: 26px; }
@@ -898,6 +941,16 @@
 <footer>
   <strong style="color:#555;">M1 Concourse</strong> &nbsp;·&nbsp; 1 Motorsports Dr, Pontiac, MI &nbsp;·&nbsp; <a href="https://m1concourse.com">m1concourse.com</a>
 </footer>
+
+<!-- Marquee of fan selfies -->
+<div class="marquee-section">
+  <div class="marquee-label">Fan Selfies from the American Speed Festival</div>
+  <div class="marquee-track-wrap">
+    <div class="marquee-track" id="marquee-track">
+      <!-- populated by JS -->
+    </div>
+  </div>
+</div>
 
 </div><!-- end main-content -->
 
@@ -1409,6 +1462,10 @@ async function generateSelfie() {
     const nameSpan = document.getElementById('driver-social-name');
     if (nameSpan) nameSpan.textContent = selectedDriver.name;
 
+    // Save to marquee gallery
+    saveSelfie(resultDataURL);
+    buildMarquee();
+
     // Show generated image directly in img tag
     const fallbackImg = document.getElementById('result-img-fallback');
     if (fallbackImg) {
@@ -1738,6 +1795,51 @@ document.getElementById('start-over').addEventListener('click', () => {
 });
 
 // ── Auto-height: tell parent iframe how tall we are ───────────────────────
+// ── Marquee — fan selfie gallery ─────────────────────────────────────────
+const MARQUEE_KEY = 'm1_asf_selfies';
+const SEED_IMAGES = [
+  'https://images.unsplash.com/photo-1541348263662-e068662d82af?w=300&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=300&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=300&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1551958219-acbc4c739bc7?w=300&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=300&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=300&h=300&fit=crop',
+];
+
+function getSavedSelfies() {
+  try {
+    return JSON.parse(localStorage.getItem(MARQUEE_KEY) || '[]');
+  } catch { return []; }
+}
+
+function saveSelfie(url) {
+  try {
+    const saved = getSavedSelfies();
+    // Only store CDN URLs, not data URIs
+    if (url && url.startsWith('http') && !saved.includes(url)) {
+      saved.unshift(url);
+      // Keep last 30
+      localStorage.setItem(MARQUEE_KEY, JSON.stringify(saved.slice(0, 30)));
+    }
+  } catch(e) {}
+}
+
+function buildMarquee() {
+  const track = document.getElementById('marquee-track');
+  if (!track) return;
+  const saved = getSavedSelfies();
+  const all = [...saved, ...SEED_IMAGES];
+  // Duplicate for seamless loop
+  const doubled = [...all, ...all];
+  track.innerHTML = doubled.map(url =>
+    `<img class="marquee-img" src="${url}" alt="Fan selfie" loading="lazy" onerror="this.style.display='none'" />`
+  ).join('');
+}
+
+buildMarquee();
+
 function sendHeight() {
   // Use the last visible child's bottom edge for precise height
   const children = document.body.children;
